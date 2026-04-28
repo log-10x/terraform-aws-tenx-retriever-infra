@@ -24,7 +24,7 @@ This module is published on Terraform Cloud and can be used directly in your Ter
 ```hcl
 module "tenx-retriever-infra" {
   source  = "log-10x/tenx-retriever-infra/aws"
-  version = "0.9.1"
+  version = "0.9.2"
 
   tenx_retriever_index_queue_name    = "my-index-queue"
   tenx_retriever_query_queue_name    = "my-query-queue"
@@ -72,6 +72,7 @@ The following input variables are supported:
 | `tenx_retriever_enable_observability_metrics` | Whether to create CloudWatch metric filters that extract operational metrics from the query log group. Requires `tenx_retriever_query_log_group_name`. | `bool` | `true` | No |
 | `tenx_retriever_metric_namespace`            | CloudWatch namespace for retriever observability metrics                | `string`      | `Log10x/Retriever`  | No       |
 | `tenx_retriever_metric_filter_name_prefix`   | Prefix for metric filter resource names. Empty (default) derives from the log group name (e.g. `/tenx/foo/query` → `tenx-foo-query`). | `string` | `""` | No |
+| `tenx_retriever_metric_filter_dependencies`  | Optional list of resources the metric filters should wait for before being created. Required when `tenx_retriever_create_query_log_group = false` (BYO log group): pass the externally-managed log group resource so Terraform can sequence operations correctly. | `list(any)` | `[]` | No |
 
 ## Outputs
 
@@ -98,7 +99,7 @@ Below is an example of how to use this module with custom settings:
 ```hcl
 module "tenx-retriever-infra" {
   source  = "log-10x/tenx-retriever-infra/aws"
-  version = "0.9.1"
+  version = "0.9.2"
 
   # Queue Configuration
   tenx_retriever_index_queue_name    = "my-custom-index-queue"
@@ -233,6 +234,30 @@ resource "aws_cloudwatch_metric_alarm" "stack_overflow" {
 ```
 
 Filter resource names default to a sanitized form of the log group name (e.g. `/tenx/prod/retriever/query` → `tenx-prod-retriever-query-stack-overflow`). Override `tenx_retriever_metric_filter_name_prefix` to maintain naming continuity across module upgrades.
+
+#### Ordering with a bring-your-own log group
+
+When `tenx_retriever_create_query_log_group = false`, the module references the log group only by name (a string), so Terraform can't infer that the metric filters should be created after the externally-managed log group resource. To wire that ordering explicitly, pass the log group resource via `tenx_retriever_metric_filter_dependencies`:
+
+```hcl
+resource "aws_cloudwatch_log_group" "retriever_query" {
+  name              = "/tenx/prod/retriever/query"
+  retention_in_days = 14
+}
+
+module "tenx_retriever_infra" {
+  source  = "log-10x/tenx-retriever-infra/aws"
+  version = "0.9.2"
+
+  # ... other config ...
+
+  tenx_retriever_query_log_group_name        = aws_cloudwatch_log_group.retriever_query.name
+  tenx_retriever_create_query_log_group      = false
+  tenx_retriever_metric_filter_dependencies  = [aws_cloudwatch_log_group.retriever_query]
+}
+```
+
+Without this, the first `terraform apply` may schedule the metric filter creation in parallel with (or before) the log group, causing `ResourceNotFoundException` from the CloudWatch Logs API.
 
 For additional details, refer to the module's page on the [Terraform Cloud Registry](https://registry.terraform.io/).
 

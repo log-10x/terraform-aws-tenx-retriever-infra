@@ -140,3 +140,9 @@ variable "tenx_retriever_metric_filter_name_prefix" {
   type        = string
   default     = ""
 }
+
+variable "tenx_retriever_metric_filter_dependencies" {
+  description = "Optional list of resources the observability metric filters should wait for before being created. Use this when `tenx_retriever_create_query_log_group = false` (BYO log group): pass the log group resource so Terraform sequences metric-filter creation after the log group exists. The module references the BYO log group by name (a string), so without this hint Terraform has no way to infer the ordering."
+  type        = list(any)
+  default     = []
+}
