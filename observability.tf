@@ -22,6 +22,21 @@
 # (default true). Filter resource names default to a sanitized form of the
 # log group name; override via `tenx_retriever_metric_filter_name_prefix` to
 # preserve existing names across module upgrades.
+#
+# Ordering note: Terraform's `depends_on` requires a static list expression,
+# so the metric filters can't reference `var.tenx_retriever_metric_filter_dependencies`
+# directly. The `terraform_data.metric_filter_dependencies` resource below
+# captures the variable in its `input`, and each metric filter has a static
+# `depends_on = [terraform_data.metric_filter_dependencies]`. Terraform
+# follows references inside `input` to build the transitive ordering — so
+# anything passed in via the variable is created before the filters.
+
+# Indirection that lets consumers express ordering dependencies for the
+# metric filters (see variable doc for context). Always exists; carries an
+# empty list when no dependencies are passed in.
+resource "terraform_data" "metric_filter_dependencies" {
+  input = var.tenx_retriever_metric_filter_dependencies
+}
 
 # ==============================================================================
 # Crash detection
@@ -31,6 +46,7 @@
 # on >0 in a 1-minute window.
 resource "aws_cloudwatch_log_metric_filter" "stack_overflow" {
   count          = local.observability_enabled ? 1 : 0
+  depends_on     = [terraform_data.metric_filter_dependencies]
   name           = "${local.metric_filter_name_prefix}-stack-overflow"
   log_group_name = var.tenx_retriever_query_log_group_name
   pattern        = "\"StackOverflowError\""
@@ -54,6 +70,7 @@ resource "aws_cloudwatch_log_metric_filter" "stack_overflow" {
 # "scan complete: scanned=N, matched=M, skippedDuplicate=D, …"
 resource "aws_cloudwatch_log_metric_filter" "scan_complete" {
   count          = local.observability_enabled ? 1 : 0
+  depends_on     = [terraform_data.metric_filter_dependencies]
   name           = "${local.metric_filter_name_prefix}-scan-complete"
   log_group_name = var.tenx_retriever_query_log_group_name
   pattern        = "\"scan complete:\""
@@ -69,6 +86,7 @@ resource "aws_cloudwatch_log_metric_filter" "scan_complete" {
 # "stream worker complete: fetched N bytes"
 resource "aws_cloudwatch_log_metric_filter" "stream_worker_complete" {
   count          = local.observability_enabled ? 1 : 0
+  depends_on     = [terraform_data.metric_filter_dependencies]
   name           = "${local.metric_filter_name_prefix}-stream-worker-complete"
   log_group_name = var.tenx_retriever_query_log_group_name
   pattern        = "\"stream worker complete:\""
@@ -87,6 +105,7 @@ resource "aws_cloudwatch_log_metric_filter" "stream_worker_complete" {
 # (e.g., >5 in 5m).
 resource "aws_cloudwatch_log_metric_filter" "stream_worker_skipped" {
   count          = local.observability_enabled ? 1 : 0
+  depends_on     = [terraform_data.metric_filter_dependencies]
   name           = "${local.metric_filter_name_prefix}-stream-worker-skipped"
   log_group_name = var.tenx_retriever_query_log_group_name
   pattern        = "\"stream worker skipped:\""
@@ -102,6 +121,7 @@ resource "aws_cloudwatch_log_metric_filter" "stream_worker_skipped" {
 # "results writer complete: N events written, D dropped, … N bytes"
 resource "aws_cloudwatch_log_metric_filter" "results_writer_complete" {
   count          = local.observability_enabled ? 1 : 0
+  depends_on     = [terraform_data.metric_filter_dependencies]
   name           = "${local.metric_filter_name_prefix}-results-writer-complete"
   log_group_name = var.tenx_retriever_query_log_group_name
   pattern        = "\"results writer complete:\""
@@ -118,6 +138,7 @@ resource "aws_cloudwatch_log_metric_filter" "results_writer_complete" {
 # Consumers typically alarm on >0 in 5m.
 resource "aws_cloudwatch_log_metric_filter" "launch_failed" {
   count          = local.observability_enabled ? 1 : 0
+  depends_on     = [terraform_data.metric_filter_dependencies]
   name           = "${local.metric_filter_name_prefix}-launch-failed"
   log_group_name = var.tenx_retriever_query_log_group_name
   pattern        = "\"could not launch pipeline\""
@@ -141,6 +162,7 @@ resource "aws_cloudwatch_log_metric_filter" "launch_failed" {
 
 resource "aws_cloudwatch_log_metric_filter" "bloom_blobs_scanned" {
   count          = local.observability_enabled ? 1 : 0
+  depends_on     = [terraform_data.metric_filter_dependencies]
   name           = "${local.metric_filter_name_prefix}-bloom-blobs-scanned"
   log_group_name = var.tenx_retriever_query_log_group_name
   pattern        = "{ $.message = \"scan complete*\" && $.fields.scanned = * }"
@@ -155,6 +177,7 @@ resource "aws_cloudwatch_log_metric_filter" "bloom_blobs_scanned" {
 
 resource "aws_cloudwatch_log_metric_filter" "bloom_blobs_matched" {
   count          = local.observability_enabled ? 1 : 0
+  depends_on     = [terraform_data.metric_filter_dependencies]
   name           = "${local.metric_filter_name_prefix}-bloom-blobs-matched"
   log_group_name = var.tenx_retriever_query_log_group_name
   pattern        = "{ $.message = \"scan complete*\" && $.fields.matched = * }"
