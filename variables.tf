@@ -113,3 +113,30 @@ variable "tenx_retriever_query_log_group_retention" {
   type        = number
   default     = 7
 }
+
+variable "tenx_retriever_create_query_log_group" {
+  description = "Whether to create the CloudWatch log group for query event logging. Set false to use an existing log group managed outside this module (still requires tenx_retriever_query_log_group_name to wire IAM/JVM)."
+  type        = bool
+  default     = true
+}
+
+# Observability — CloudWatch metric filters that translate retriever JVM
+# log lines into queryable CloudWatch metrics. See observability.tf.
+
+variable "tenx_retriever_enable_observability_metrics" {
+  description = "Whether to create CloudWatch metric filters that extract operational metrics (StackOverflowCount, ScanCompleteCount, BloomBlobsScanned, etc.) from the query log group. Requires tenx_retriever_query_log_group_name to be set."
+  type        = bool
+  default     = true
+}
+
+variable "tenx_retriever_metric_namespace" {
+  description = "CloudWatch namespace for retriever observability metrics."
+  type        = string
+  default     = "Log10x/Retriever"
+}
+
+variable "tenx_retriever_metric_filter_name_prefix" {
+  description = "Prefix for CloudWatch metric filter names. Empty (default) derives from tenx_retriever_query_log_group_name (e.g. '/tenx/foo/query' → 'tenx-foo-query'). Override to maintain naming continuity across module upgrades."
+  type        = string
+  default     = ""
+}

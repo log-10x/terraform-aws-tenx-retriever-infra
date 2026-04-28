@@ -24,7 +24,7 @@ This module is published on Terraform Cloud and can be used directly in your Ter
 ```hcl
 module "tenx-retriever-infra" {
   source  = "log-10x/tenx-retriever-infra/aws"
-  version = "0.9.0"
+  version = "0.9.1"
 
   tenx_retriever_index_queue_name    = "my-index-queue"
   tenx_retriever_query_queue_name    = "my-query-queue"
@@ -54,20 +54,24 @@ The following input variables are supported:
 | `tenx_retriever_query_queue_name`    | Name of the query SQS queue                                             | `string`      | `my-query-queue`    | No       |
 | `tenx_retriever_subquery_queue_name` | Name of the sub-query SQS queue                                         | `string`      | `my-subquery-queue` | No       |
 | `tenx_retriever_stream_queue_name`   | Name of the stream SQS queue                                            | `string`      | `my-stream-queue`   | No       |
-| `tenx_retriever_visibility_timeout`  | Visibility timeout for all queues in seconds                            | `number`      | `30`                | No       |
-| `tenx_retriever_message_retention`   | Number of seconds Amazon SQS retains a message for all queues           | `number`      | `345600` (4 days)   | No       |
-| `tenx_retriever_max_message_size`    | Maximum bytes a message can contain before rejection for all queues     | `number`      | `262144` (256 KB)   | No       |
-| `tenx_retriever_queue_delay_seconds`       | Time in seconds that delivery of all messages will be delayed           | `number`      | `0`                 | No       |
-| `tenx_retriever_queue_receive_wait_time`   | Time for which a ReceiveMessage call will wait (long polling) in seconds | `number`     | `20`                | No       |
-| `tenx_retriever_create_index_source_bucket` | Whether to create the S3 bucket for source files to be indexed | `bool` | `true` | No |
-| `tenx_retriever_index_source_bucket_name` | Name of the S3 bucket for source files to be indexed | `string` | `my-tenx-index-bucket` | No |
-| `tenx_retriever_create_index_results_bucket` | Whether to create the S3 bucket for indexing results | `bool` | `true` | No |
-| `tenx_retriever_index_results_bucket_name` | Name of the S3 bucket for indexing results | `string` | `my-tenx-index-bucket` | No |
-| `tenx_retriever_index_results_path` | Path within results bucket where indexing results will be stored | `string` | `indexing-results/` | No |
-| `tenx_retriever_index_trigger_prefix` | S3 object key prefix filter for triggering indexing | `string` | `app/` | No |
-| `tenx_retriever_index_trigger_suffix` | S3 object key suffix filter for triggering indexing | `string` | `.log` | No |
-| `tenx_retriever_query_log_group_name` | Name of the CloudWatch Logs log group for query event logging. If empty, no log group is created. | `string` | `""` | No |
-| `tenx_retriever_query_log_group_retention` | Number of days to retain query event logs in CloudWatch Logs | `number` | `7` | No |
+| `tenx_retriever_queue_visibility_timeout`    | Visibility timeout for all queues in seconds                            | `number`      | `30`                | No       |
+| `tenx_retriever_queue_message_retention`     | Number of seconds Amazon SQS retains a message for all queues           | `number`      | `345600` (4 days)   | No       |
+| `tenx_retriever_queue_max_message_size`      | Maximum bytes a message can contain before rejection for all queues     | `number`      | `262144` (256 KB)   | No       |
+| `tenx_retriever_queue_delay_seconds`         | Time in seconds that delivery of all messages will be delayed           | `number`      | `0`                 | No       |
+| `tenx_retriever_queue_receive_wait_time`     | Time for which a ReceiveMessage call will wait (long polling) in seconds | `number`     | `20`                | No       |
+| `tenx_retriever_create_index_source_bucket`  | Whether to create the S3 bucket for source files to be indexed          | `bool`        | `true`              | No       |
+| `tenx_retriever_index_source_bucket_name`    | Name of the S3 bucket for source files to be indexed                    | `string`      | `my-tenx-index-bucket` | No    |
+| `tenx_retriever_create_index_results_bucket` | Whether to create the S3 bucket for indexing results                    | `bool`        | `true`              | No       |
+| `tenx_retriever_index_results_bucket_name`   | Name of the S3 bucket for indexing results                              | `string`      | `my-tenx-index-bucket` | No    |
+| `tenx_retriever_index_results_path`          | Path within results bucket where indexing results will be stored        | `string`      | `indexing-results/` | No       |
+| `tenx_retriever_index_trigger_prefix`        | S3 object key prefix filter for triggering indexing                     | `string`      | `app/`              | No       |
+| `tenx_retriever_index_trigger_suffix`        | S3 object key suffix filter for triggering indexing                     | `string`      | `.log`              | No       |
+| `tenx_retriever_query_log_group_name`        | Name of the CloudWatch Logs log group for query event logging. If empty, no log group is created and query event logging is disabled. | `string` | `""` | No |
+| `tenx_retriever_query_log_group_retention`   | Number of days to retain query event logs in CloudWatch Logs            | `number`      | `7`                 | No       |
+| `tenx_retriever_create_query_log_group`      | Whether the module creates the CloudWatch log group. Set `false` to use an existing log group managed outside this module (still requires `tenx_retriever_query_log_group_name`). | `bool` | `true` | No |
+| `tenx_retriever_enable_observability_metrics` | Whether to create CloudWatch metric filters that extract operational metrics from the query log group. Requires `tenx_retriever_query_log_group_name`. | `bool` | `true` | No |
+| `tenx_retriever_metric_namespace`            | CloudWatch namespace for retriever observability metrics                | `string`      | `Log10x/Retriever`  | No       |
+| `tenx_retriever_metric_filter_name_prefix`   | Prefix for metric filter resource names. Empty (default) derives from the log group name (e.g. `/tenx/foo/query` → `tenx-foo-query`). | `string` | `""` | No |
 
 ## Outputs
 
@@ -82,8 +86,10 @@ The module provides the following outputs for application configuration:
 | `index_source_bucket_name`  | Name of the S3 bucket for source files to be indexed            | Reference/Documentation |
 | `index_results_bucket_name` | Name of the S3 bucket for indexing results                       | Reference/Documentation |
 | `index_write_container`     | Full path for indexing results (bucket + path)                   | `tenx.quarkus.index.write.container` |
-| `query_log_group_name`      | Name of the CloudWatch Logs log group for query events (empty if disabled) | `TENX_QUERY_LOG_GROUP` |
-| `query_log_group_arn`       | ARN of the CloudWatch Logs log group for query events (empty if disabled) | IAM policy configuration |
+| `query_log_group_name`         | Name of the CloudWatch Logs log group for query events (empty if disabled). Always echoes the input variable. | `TENX_QUERY_LOG_GROUP` |
+| `query_log_group_arn`          | ARN of the CloudWatch Logs log group for query events (empty if disabled). Constructed from name + region + account when the consumer brings their own log group. | IAM policy configuration |
+| `observability_metric_namespace` | CloudWatch namespace where retriever observability metrics are published (empty when metrics are disabled) | Consumer-side alarm/dashboard wiring |
+| `observability_metric_names`   | Map of canonical metric names (`stack_overflow`, `scan_complete`, `stream_worker_complete`, `stream_worker_skipped`, `results_writer_complete`, `launch_failed`, `bloom_blobs_scanned`, `bloom_blobs_matched`). Empty values when metrics are disabled. | Consumer-side alarm/dashboard wiring |
 
 ## Example Configuration
 
@@ -92,7 +98,7 @@ Below is an example of how to use this module with custom settings:
 ```hcl
 module "tenx-retriever-infra" {
   source  = "log-10x/tenx-retriever-infra/aws"
-  version = "0.9.0"
+  version = "0.9.1"
 
   # Queue Configuration
   tenx_retriever_index_queue_name    = "my-custom-index-queue"
@@ -135,7 +141,8 @@ module "tenx-retriever-infra" {
   3. The consumer parses the S3 event and converts it to an `IndexRequest`
   4. Indexing proceeds with the extracted bucket/object information
 - **Direct S3 → SQS Integration**: No Lambda required - S3 sends events directly to SQS with proper IAM permissions
-- **CloudWatch Logs**: Optionally creates a CloudWatch Logs log group for query event logging. When configured, query coordinators and stream workers write progress, diagnostic, and error events to this log group. Each query creates log streams named `{queryID}/{workerID}`.
+- **CloudWatch Logs**: Optionally creates a CloudWatch Logs log group for query event logging. When configured, query coordinators and stream workers write progress, diagnostic, and error events to this log group. Each query creates log streams named `{queryID}/{workerID}`. Set `tenx_retriever_create_query_log_group = false` to use an existing log group managed outside this module.
+- **Observability Metrics**: When the query log group is configured, the module also creates CloudWatch metric filters that translate retriever log lines into queryable metrics (per-stage progress, failure counts, bloom filter efficiency, crash detection). See [Observability Metrics](#observability-metrics) below. Toggle via `tenx_retriever_enable_observability_metrics`.
 - **Bucket Management**: Optionally creates S3 buckets for source files and indexing results, or uses existing buckets
 - **Tags**: User-supplied tags are merged with default tags (`terraform-module`, `terraform-module-version`, `managed-by`) for resource identification.
 - **Configurable Parameters**: Supports customization of queue behavior including visibility timeout, message retention, and long polling settings.
@@ -185,7 +192,49 @@ Set the `tenx.quarkus.index.write.container` property to specify where indexing 
 - **Separate buckets**: Provide different names for source and results buckets
 - **Use existing buckets**: Set `tenx_retriever_create_index_source_bucket` or `tenx_retriever_create_index_results_bucket` to `false`
 
-- For additional details, refer to the module's page on the [Terraform Cloud Registry](https://registry.terraform.io/).
+### Log Group Configuration Options
+
+- **Module-managed (default)**: Set `tenx_retriever_query_log_group_name` to a name; the module creates the log group with the configured retention.
+- **Bring your own**: Set `tenx_retriever_query_log_group_name` AND `tenx_retriever_create_query_log_group = false`. The log group must already exist (managed elsewhere); the module wires IAM and the JVM to use it. The `query_log_group_arn` output is computed from name + region + account in this case.
+- **Disabled**: Leave `tenx_retriever_query_log_group_name` empty. No log group is created, query event logging is disabled, and observability metric filters are skipped.
+
+### Observability Metrics
+
+When the query log group is configured AND `tenx_retriever_enable_observability_metrics = true` (default), the module creates eight CloudWatch metric filters that translate retriever log lines into queryable metrics. The retriever already emits these lines for human debugging — the filters republish them as metrics so dashboards and alarms don't need to grep raw log streams.
+
+**Metrics published** (namespace defaults to `Log10x/Retriever`):
+
+| Metric | Source log line | Use |
+|---|---|---|
+| `StackOverflowCount` | `StackOverflowError` | Crash detection — alarm on any occurrence |
+| `ScanCompleteCount` | `scan complete:` | Per-query throughput |
+| `StreamWorkerCompleteCount` | `stream worker complete:` | Successful stream-worker completions |
+| `StreamWorkerSkippedCount` | `stream worker skipped:` | Workers that exceeded `processingTimeLimit` — alarm on a sustained surge |
+| `ResultsWriterCompleteCount` | `results writer complete:` | Result-write throughput |
+| `LaunchFailedCount` | `could not launch pipeline` | Pipeline configuration / override mismatch — alarm on any occurrence |
+| `BloomBlobsScanned` | `scan complete:` (JSON `$.fields.scanned`) | Numerator + denominator for the bloom false-positive ratio |
+| `BloomBlobsMatched` | `scan complete:` (JSON `$.fields.matched`) | Use metric math `(matched / scanned) * 100` to track effective bloom hit rate |
+
+Alarms and dashboards are intentionally NOT created by this module (consumer-specific: alarm thresholds, SNS action ARNs, Grafana workspace, etc.). Reference the metrics from your own terraform via the `observability_metric_namespace` and `observability_metric_names` outputs:
+
+```hcl
+resource "aws_cloudwatch_metric_alarm" "stack_overflow" {
+  alarm_name          = "retriever-stack-overflow"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  threshold           = 0
+  period              = 60
+  statistic           = "Sum"
+  metric_name         = module.tenx_retriever_infra.observability_metric_names.stack_overflow
+  namespace           = module.tenx_retriever_infra.observability_metric_namespace
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.oncall_sns_topic_arn]
+}
+```
+
+Filter resource names default to a sanitized form of the log group name (e.g. `/tenx/prod/retriever/query` → `tenx-prod-retriever-query-stack-overflow`). Override `tenx_retriever_metric_filter_name_prefix` to maintain naming continuity across module upgrades.
+
+For additional details, refer to the module's page on the [Terraform Cloud Registry](https://registry.terraform.io/).
 
 ## License
 
