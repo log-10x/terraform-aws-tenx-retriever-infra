@@ -1,7 +1,7 @@
 locals {
   tags = merge(var.tenx_retriever_user_supplied_tags, {
     terraform-module         = "tenx-retriever-infra"
-    terraform-module-version = "v0.9.2"
+    terraform-module-version = "v0.9.3"
     managed-by               = "tenx-terraform"
   })
 
