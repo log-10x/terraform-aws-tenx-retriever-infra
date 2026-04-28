@@ -42,6 +42,35 @@ output "query_log_group_name" {
 }
 
 output "query_log_group_arn" {
-  description = "The ARN of the CloudWatch Logs log group for query event logging (empty if disabled)"
-  value       = length(aws_cloudwatch_log_group.query_log_group) > 0 ? aws_cloudwatch_log_group.query_log_group[0].arn : ""
+  description = "The ARN of the CloudWatch Logs log group for query event logging (empty if disabled). Constructed from name + region + account when the consumer brings their own log group via tenx_retriever_create_query_log_group = false."
+  value = (
+    length(aws_cloudwatch_log_group.query_log_group) > 0
+    ? aws_cloudwatch_log_group.query_log_group[0].arn
+    : (
+      var.tenx_retriever_query_log_group_name != ""
+      ? "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:${var.tenx_retriever_query_log_group_name}"
+      : ""
+    )
+  )
+}
+
+# Observability — metric filter outputs for consumer-side alarms/dashboards.
+
+output "observability_metric_namespace" {
+  description = "CloudWatch namespace where retriever observability metrics are published. Empty when observability metrics are disabled."
+  value       = local.observability_enabled ? var.tenx_retriever_metric_namespace : ""
+}
+
+output "observability_metric_names" {
+  description = "Map of canonical retriever metric names (for consumer alarms/dashboards). Empty values when observability metrics are disabled, so consumer count-guards still work."
+  value = {
+    stack_overflow          = local.observability_enabled ? "StackOverflowCount" : ""
+    scan_complete           = local.observability_enabled ? "ScanCompleteCount" : ""
+    stream_worker_complete  = local.observability_enabled ? "StreamWorkerCompleteCount" : ""
+    stream_worker_skipped   = local.observability_enabled ? "StreamWorkerSkippedCount" : ""
+    results_writer_complete = local.observability_enabled ? "ResultsWriterCompleteCount" : ""
+    launch_failed           = local.observability_enabled ? "LaunchFailedCount" : ""
+    bloom_blobs_scanned     = local.observability_enabled ? "BloomBlobsScanned" : ""
+    bloom_blobs_matched     = local.observability_enabled ? "BloomBlobsMatched" : ""
+  }
 }

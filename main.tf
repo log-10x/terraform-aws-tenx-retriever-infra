@@ -1,7 +1,7 @@
 locals {
   tags = merge(var.tenx_retriever_user_supplied_tags, {
     terraform-module         = "tenx-retriever-infra"
-    terraform-module-version = "v0.9.0"
+    terraform-module-version = "v0.9.1"
     managed-by               = "tenx-terraform"
   })
 
@@ -10,7 +10,26 @@ locals {
 
   # Construct the indexWriteContainer path (bucket + path)
   index_write_container = "${var.tenx_retriever_index_results_bucket_name}/${var.tenx_retriever_index_results_path}"
+
+  # Observability metric-filter name prefix. Default: sanitized log group
+  # name (leading slash stripped, remaining slashes → hyphens). Override
+  # via tenx_retriever_metric_filter_name_prefix to maintain naming
+  # continuity across module upgrades.
+  metric_filter_name_prefix = (
+    var.tenx_retriever_metric_filter_name_prefix != ""
+    ? var.tenx_retriever_metric_filter_name_prefix
+    : replace(trimprefix(var.tenx_retriever_query_log_group_name, "/"), "/", "-")
+  )
+
+  # Observability is wireable when a log group is configured AND the user
+  # has not opted out. Used as the count guard on every metric filter.
+  observability_enabled = var.tenx_retriever_query_log_group_name != "" && var.tenx_retriever_enable_observability_metrics
 }
+
+# Data sources used to construct the log group ARN when the consumer brings
+# their own log group (i.e. tenx_retriever_create_query_log_group = false).
+data "aws_region" "current" {}
+data "aws_caller_identity" "current" {}
 
 resource "aws_sqs_queue" "tenx_index_queue" {
   name = var.tenx_retriever_index_queue_name
@@ -119,7 +138,7 @@ resource "aws_s3_bucket_notification" "index_trigger" {
 # CloudWatch Logs for Query Event Logging
 # Only created when a log group name is provided
 resource "aws_cloudwatch_log_group" "query_log_group" {
-  count             = var.tenx_retriever_query_log_group_name != "" ? 1 : 0
+  count             = var.tenx_retriever_query_log_group_name != "" && var.tenx_retriever_create_query_log_group ? 1 : 0
   name              = var.tenx_retriever_query_log_group_name
   retention_in_days = var.tenx_retriever_query_log_group_retention
 
