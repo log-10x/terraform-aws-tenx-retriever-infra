@@ -1,28 +1,34 @@
-# CloudWatch metric filters that translate the retriever JVM's standard log
-# output into queryable CloudWatch metrics. All patterns parse log lines the
-# engine ALREADY emits — no engine changes required.
+# CloudWatch metric filters that translate the retriever's standard log output
+# into queryable CloudWatch metrics. Patterns parse log lines the engine
+# already emits — no engine changes required to use these.
 #
-# Three observability themes covered:
-#   - O14: crash detection (StackOverflowError)
-#   - O11: per-stage pipeline progress + failure modes (scan/worker/results/
-#          launch_failed)
-#   - O12: bloom filter false-positive rate (matched/scanned ratio)
+# Three groups of metrics are produced:
 #
-# Alarms + dashboards are intentionally NOT in this module — they're env-
-# specific (alarm thresholds, SNS action ARNs, Grafana workspace, etc.).
-# Consumers reference the metric names via the `observability_metric_names`
-# output and build their own alarms/dashboards on top.
+#   - Crash detection: StackOverflowError occurrences.
+#   - Per-stage progress + failures: counters for each pipeline stage (scan,
+#     stream worker, results writer) plus the failure modes (workers skipped
+#     due to processing-time limits, pipeline launch errors).
+#   - Bloom filter efficiency: scanned vs matched object counts, used to
+#     derive the bloom false-positive ratio via metric math on the consumer
+#     side.
 #
-# Toggle with `tenx_retriever_enable_observability_metrics` (default true).
-# Filter names default to a sanitized form of the log group name; override
-# via `tenx_retriever_metric_filter_name_prefix` to maintain naming continuity.
+# Alarms and dashboards are intentionally NOT created here — they're
+# environment-specific (alarm thresholds, SNS action ARNs, Grafana
+# workspace, etc.). Consumers reference the canonical metric names via the
+# `observability_metric_names` output and build their own alarms/dashboards
+# on top.
+#
+# Toggle the entire block with `tenx_retriever_enable_observability_metrics`
+# (default true). Filter resource names default to a sanitized form of the
+# log group name; override via `tenx_retriever_metric_filter_name_prefix` to
+# preserve existing names across module upgrades.
 
 # ==============================================================================
-# O14 — Crash detection
+# Crash detection
 # ==============================================================================
-# Any single StackOverflowError is a ten-alarm fire (recursion bug surface
-# in string handling). Consumers should alarm on >0 in 1m.
 
+# Any StackOverflowError indicates a recursion bug; consumers typically alarm
+# on >0 in a 1-minute window.
 resource "aws_cloudwatch_log_metric_filter" "stack_overflow" {
   count          = local.observability_enabled ? 1 : 0
   name           = "${local.metric_filter_name_prefix}-stack-overflow"
@@ -39,11 +45,11 @@ resource "aws_cloudwatch_log_metric_filter" "stack_overflow" {
 }
 
 # ==============================================================================
-# O11 — Per-stage pipeline progress + failures
+# Per-stage pipeline progress + failures
 # ==============================================================================
-# scan → stream-worker → results writer. Each stage emits a "<stage>
-# complete:" log line. Counters surface throughput; "skipped" + "could not
-# launch pipeline" surface failure modes.
+# Pipeline shape: scan → stream-worker → results writer. Each stage emits a
+# "<stage> complete:" log line; counters surface throughput and "skipped" /
+# "could not launch pipeline" surface failure modes.
 
 # "scan complete: scanned=N, matched=M, skippedDuplicate=D, …"
 resource "aws_cloudwatch_log_metric_filter" "scan_complete" {
@@ -76,9 +82,9 @@ resource "aws_cloudwatch_log_metric_filter" "stream_worker_complete" {
 }
 
 # "stream worker skipped: processing time limit exceeded (…)"
-# Sustained non-zero rate = deadline starvation regression OR scan phase
-# eating more budget than `processingTimeLimit` allows. Consumers should
-# alarm on a sustained surge (e.g., >5 in 5m).
+# A non-zero rate indicates queries are exceeding the configured
+# `processingTimeLimit`. Consumers typically alarm on a sustained surge
+# (e.g., >5 in 5m).
 resource "aws_cloudwatch_log_metric_filter" "stream_worker_skipped" {
   count          = local.observability_enabled ? 1 : 0
   name           = "${local.metric_filter_name_prefix}-stream-worker-skipped"
@@ -108,9 +114,8 @@ resource "aws_cloudwatch_log_metric_filter" "results_writer_complete" {
   }
 }
 
-# "could not launch pipeline" — required-overrides mismatch or config error
-# (e.g., queryFilters list/override plumbing, case-folding of
-# groupFlushTimeout). Consumers should alarm on >0 in 5m.
+# "could not launch pipeline" — pipeline configuration or override mismatch.
+# Consumers typically alarm on >0 in 5m.
 resource "aws_cloudwatch_log_metric_filter" "launch_failed" {
   count          = local.observability_enabled ? 1 : 0
   name           = "${local.metric_filter_name_prefix}-launch-failed"
@@ -126,13 +131,13 @@ resource "aws_cloudwatch_log_metric_filter" "launch_failed" {
 }
 
 # ==============================================================================
-# O12 — Bloom false-positive rate (matched / scanned ratio)
+# Bloom filter efficiency (matched / scanned)
 # ==============================================================================
-# CloudWatch can't divide in metric filters — emit SCANNED and MATCHED as
-# separate metrics; consumer dashboards/alarms compute the ratio via metric
-# math (e.g. `(m_matched / m_scanned) * 100`). Pulls numeric fields from the
-# structured JSON payload the engine emits alongside the plain "scan
-# complete:" line — see indexAccessor.logQueryEvent in IndexQueryWriter.java.
+# CloudWatch metric filters can't divide — SCANNED and MATCHED counts are
+# emitted as separate metrics, and the consumer's dashboard/alarm computes
+# the ratio via metric math (e.g. `(m_matched / m_scanned) * 100`).
+# Patterns extract numeric fields from the structured JSON payload the
+# engine emits alongside the plain-text "scan complete:" line.
 
 resource "aws_cloudwatch_log_metric_filter" "bloom_blobs_scanned" {
   count          = local.observability_enabled ? 1 : 0
