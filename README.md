@@ -24,7 +24,7 @@ This module is published on Terraform Cloud and can be used directly in your Ter
 ```hcl
 module "tenx-retriever-infra" {
   source  = "log-10x/tenx-retriever-infra/aws"
-  version = "0.9.2"
+  version = "0.9.3"
 
   tenx_retriever_index_queue_name    = "my-index-queue"
   tenx_retriever_query_queue_name    = "my-query-queue"
@@ -99,7 +99,7 @@ Below is an example of how to use this module with custom settings:
 ```hcl
 module "tenx-retriever-infra" {
   source  = "log-10x/tenx-retriever-infra/aws"
-  version = "0.9.2"
+  version = "0.9.3"
 
   # Queue Configuration
   tenx_retriever_index_queue_name    = "my-custom-index-queue"
@@ -247,7 +247,7 @@ resource "aws_cloudwatch_log_group" "retriever_query" {
 
 module "tenx_retriever_infra" {
   source  = "log-10x/tenx-retriever-infra/aws"
-  version = "0.9.2"
+  version = "0.9.3"
 
   # ... other config ...
 

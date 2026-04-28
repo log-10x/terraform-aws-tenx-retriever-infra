@@ -26,16 +26,26 @@
 # Ordering note: Terraform's `depends_on` requires a static list expression,
 # so the metric filters can't reference `var.tenx_retriever_metric_filter_dependencies`
 # directly. The `terraform_data.metric_filter_dependencies` resource below
-# captures the variable in its `input`, and each metric filter has a static
-# `depends_on = [terraform_data.metric_filter_dependencies]`. Terraform
-# follows references inside `input` to build the transitive ordering — so
-# anything passed in via the variable is created before the filters.
+# captures the variable in `triggers_replace`, and each metric filter has a
+# static `depends_on = [terraform_data.metric_filter_dependencies]`.
+# Terraform follows references inside `triggers_replace` to build the
+# transitive ordering — so anything passed in via the variable is created
+# before the filters.
+#
+# `triggers_replace` (rather than `input`) is used here because `input`
+# preserves the full attribute snapshot of the referenced resources in
+# state, which trips Terraform's plan-vs-apply consistency check on
+# attributes that have provider-side defaults (e.g.
+# `aws_cloudwatch_log_group.kms_key_id` reads as null at plan time and as
+# `""` at apply time). `triggers_replace` only hashes the value to detect
+# changes and doesn't store the snapshot, so the consistency check
+# doesn't apply.
 
 # Indirection that lets consumers express ordering dependencies for the
 # metric filters (see variable doc for context). Always exists; carries an
 # empty list when no dependencies are passed in.
 resource "terraform_data" "metric_filter_dependencies" {
-  input = var.tenx_retriever_metric_filter_dependencies
+  triggers_replace = var.tenx_retriever_metric_filter_dependencies
 }
 
 # ==============================================================================
